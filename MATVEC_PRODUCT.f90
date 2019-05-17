@@ -100,13 +100,13 @@ contains
     allocate(Eps(Ns-1))
     !
     !< generate Hamiltonian parameters:
-    Vps  = 1d0/sqrt(2d0)!sqrt(dble(Ns-1))
+    Vps  = mersenne()!1d0/sqrt(2d0)!sqrt(dble(Ns-1))
     !
     ! seed = random_number_seed()
     ! call mt_init(seed)
-    e0  = mersenne()
+    e0  = 0d0!mersenne()
     !
-    eps = mt_uniform(-1d0,1d0)
+    eps = 0d0!mt_uniform(-1d0,1d0)
     !
     Uloc = 2d0
     !
