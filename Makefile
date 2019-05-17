@@ -39,8 +39,6 @@ clean:
 	@rm -f *.mod
 	@rm -f *.o
 	@rm -f *~
-	@rm -f ${DIREXE}/${PEXE1}
-	@rm -f ${DIREXE}/${PEXE2}
 	@echo ""
 
 .f90.o:	
