@@ -27,7 +27,7 @@ MODULE MATVEC_PRODUCT
   !Hamiltonian hard coded paramters:
   !Hamiltonian hard coded paramters:
   real(8)                       :: e0,xmu
-  real(8)                       :: Vps,Uloc
+  real(8)                       :: Uloc
   real(8),dimension(:),allocatable :: Eps
   !
   type(sector_map),dimension(2) :: Hs
@@ -100,7 +100,7 @@ contains
     allocate(Eps(Ns-1))
     !
     !< generate Hamiltonian parameters:
-    Vps  = mersenne()!1d0/sqrt(2d0)!sqrt(dble(Ns-1))
+    !Vps  = 1d0/sqrt(2d0)!sqrt(dble(Ns-1))
     !
     ! seed = random_number_seed()
     ! call mt_init(seed)

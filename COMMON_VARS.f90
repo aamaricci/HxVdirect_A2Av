@@ -27,7 +27,7 @@ MODULE COMMON_VARS
   integer :: DimUp
   integer :: DimDw
   integer :: Ns       !Number of levels per spin
-
+  real(8) :: Vps      !hopping impurity-bath
   real(8) :: t_start,t_end
   
 contains

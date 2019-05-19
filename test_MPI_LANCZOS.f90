@@ -47,6 +47,8 @@ program test_MPI_LANCZOS_D
   call parse_cmd_variable(Neigen,"NEIGEN",default=1)
   call parse_cmd_variable(NCV,"NCV",default=10)
   call parse_cmd_variable(Ncycles,"NCYCLES",default=1)
+  call parse_cmd_variable(vps,"VPS",default=1d0/sqrt(2d0))
+
   !
   !
   Ns = Ntot
@@ -54,7 +56,7 @@ program test_MPI_LANCZOS_D
   DimUp  = binomial(Ns,Nup)
   DimDw  = binomial(Ns,Ndw)
   Nsparse= Ns
-  if(mpi_master)print*,"Dimensions =",DimUp,DimDw
+  if(mpi_master)print*,"Dimensions =",DimUp,DimDw,vps
   !
   Nprint=Neigen
   !
