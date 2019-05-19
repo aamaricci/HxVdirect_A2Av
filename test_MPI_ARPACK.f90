@@ -14,7 +14,7 @@ program test_MPI_LANCZOS_D
   implicit none
   !Dimension
   integer                          :: nup,ndw,Dim
-  integer                          :: Ntot,Nsparse,Ncycles
+  integer                          :: Ntot,Nsparse
   !Matrix:
   real(8),allocatable              :: Hmat(:,:)
   integer                          :: Nprint,N,Nloc
@@ -47,7 +47,6 @@ program test_MPI_LANCZOS_D
   call parse_cmd_variable(ndw,"ndw",default=6)
   call parse_cmd_variable(Neigen,"NEIGEN",default=1)
   call parse_cmd_variable(NCV,"NCV",default=10)
-  call parse_cmd_variable(Ncycles,"NCYCLES",default=1)
   call parse_cmd_variable(vps,"VPS",default=1d0/sqrt(2d0))
   !
   !
@@ -66,39 +65,37 @@ program test_MPI_LANCZOS_D
   allocate(Eval(Neigen),Evec(DimUp*mpiQdw,Neigen))
 
   if(mpi_master)print*,"ARPACK DIAG D - MPI:"
-  do icycle=1,Ncycles
-     !
-     ! build symmetric sparse matrix
-     !
-     call Build_HxV()
-     !
-     ! ARPACK LANCZOS diagonalization
-     !
-     Nitermax=512
-     Nblock=ncv*Neigen
+  !
+  ! build symmetric sparse matrix
+  !
+  call Build_HxV()
+  !
+  ! ARPACK LANCZOS diagonalization
+  !
+  Nitermax=512
+  Nblock=ncv*Neigen
 
-     Eval=0d0
-     Evec=0d0
-     if(mpi_master)call start_timer
-     t_start = MPI_Wtime()
-     call sp_eigh(comm,mpi_HxVdirect,Neigen,Nblock,Nitermax,Eval,Evec,iverbose=.true.)
-     if(mpi_master)call stop_timer
-     t_end = MPI_Wtime()
-     if(mpi_master)then
-        do i=1,Nprint
-           write(*,"(2F28.15,ES28.15)")Eval(i)
-        end do
-        open(100,file="mpi_arpack_Eval_D.dat",position="append")
-        do i=1,Nprint
-           write(100,*)Eval(i)
-        end do
-        close(100)
-        open(100,file="mpi_arpack_time.dat",position="append")
-        write(100,*)t_end-t_start
-        close(100)
-        print*,""
-     endif
-  enddo
+  Eval=0d0
+  Evec=0d0
+  if(mpi_master)call start_timer
+  t_start = MPI_Wtime()
+  call sp_eigh(comm,mpi_HxVdirect,Neigen,Nblock,Nitermax,Eval,Evec,iverbose=.true.)
+  if(mpi_master)call stop_timer
+  t_end = MPI_Wtime()
+  if(mpi_master)then
+     do i=1,Nprint
+        write(*,"(2F28.15,ES28.15)")Eval(i)
+     end do
+     open(100,file="mpi_arpack_Eval_D.dat",position="append")
+     do i=1,Nprint
+        write(100,*)Eval(i)
+     end do
+     close(100)
+     open(100,file="mpi_arpack_time.dat",position="append")
+     write(100,*)t_end-t_start
+     close(100)
+     print*,""
+  endif
   deallocate(Eval,Evec)
 
   call Finalize_MPI()
