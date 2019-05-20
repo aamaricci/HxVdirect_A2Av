@@ -28,7 +28,6 @@ MODULE MATVEC_PRODUCT
   !Hamiltonian hard coded paramters:
   real(8)                       :: e0,xmu
   real(8)                       :: Uloc
-  real(8),dimension(:),allocatable :: Eps
   !
   type(sector_map),dimension(2) :: Hs
   !
@@ -92,21 +91,14 @@ contains
   !             BUILD SPARSE HAMILTONIAN of the SECTOR
   !####################################################################
   subroutine Build_HxV()
-    integer :: ie
-    real(8) :: Deps
-    integer :: seed
     !
-    if(allocated(eps))deallocate(eps)
-    allocate(Eps(Ns-1))
+    ! e0  = 0.2d0
+    ! xmu = 0.5d0
+    ! ts  = 1d0/sqrt(2d0)
+    ! Uloc = 2d0
     !
     !< generate Hamiltonian parameters:
-    !Vps  = 1d0/sqrt(2d0)!sqrt(dble(Ns-1))
-    !
-    ! seed = random_number_seed()
-    ! call mt_init(seed)
-    e0  = 0d0!mersenne()
-    !
-    eps = 0d0!mt_uniform(-1d0,1d0)
+    e0  = -0.3d0
     !
     Uloc = 2d0
     !
@@ -151,13 +143,14 @@ contains
        htmp = htmp + Uloc*(nup(1)*ndw(1))
        htmp = htmp - 0.5d0*Uloc*(nup(1)+ndw(1)) + 0.25d0*uloc
        !
-       !> H_Bath: local bath energy contribution.
-       !diagonal bath hamiltonian: +energy of the bath=\sum_a=1,Norb\sum_{l=1,Nbath}\e^a_l n^a_l
-       do kp=1,Ns-1
-          alfa = 1 + kp
-          htmp =htmp + eps(kp)*nup(alfa) !UP
-          htmp =htmp + eps(kp)*ndw(alfa) !DW
-       enddo
+       !<
+       !H_Bath: local bath energy contribution. Assume this is zero.
+       ! do kp=1,Ns-1
+       !    alfa = 1 + kp
+       !    htmp =htmp + eps(kp)*nup(alfa) !UP
+       !    htmp =htmp + eps(kp)*ndw(alfa) !DW
+       ! enddo
+       !
        Hv(i) = Hv(i) + htmp*v(i)
     enddo
     !
@@ -279,11 +272,11 @@ contains
        !
        !> H_Bath: local bath energy contribution.
        !diagonal bath hamiltonian: +energy of the bath=\sum_a=1,Norb\sum_{l=1,Nbath}\e^a_l n^a_l
-       do kp=1,Ns-1
-          alfa = 1 + kp
-          htmp =htmp + eps(kp)*nup(alfa) !UP
-          htmp =htmp + eps(kp)*ndw(alfa) !DW
-       enddo
+       ! do kp=1,Ns-1
+       !    alfa = 1 + kp
+       !    htmp =htmp + eps(kp)*nup(alfa) !UP
+       !    htmp =htmp + eps(kp)*ndw(alfa) !DW
+       ! enddo
        !
        Hv(i) = Hv(i) + htmp*v(i)
     enddo

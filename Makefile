@@ -11,7 +11,7 @@ DIREXE = ~/.bin
 
 OBJS     = COMMON_VARS.o SETUP.o MATVEC_PRODUCT.o  SF_SP_LINALG.o 
 
-FFLAG = -O3 -ffast-math -march=native -funroll-all-loops
+FFLAG = -O2 -funroll-all-loops
 DFLAG = -O0 -p -g -fimplicit-none -Wsurprising  -Waliasing -fwhole-file -fcheck=all -pedantic -fbacktrace -ffree-line-length-none
 
 
