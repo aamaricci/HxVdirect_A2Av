@@ -48,7 +48,7 @@ contains
   !             SETUP THE MPI ENVIRONMENT
   !####################################################################
   subroutine Setup_HxV(Nups,Ndws)
-    integer :: Nups,Ndws,ie
+    integer :: Nups,Ndws,ie,irank
     real(8) :: Deps
     integer :: seed
     !
@@ -56,7 +56,7 @@ contains
     !
     DimUp = get_sector_dimension(Ns,Nups)
     DimDw = get_sector_dimension(Ns,Ndws)
-    Dim=DimUp*DimDw
+    !Dim=DimUp*DimDw
     !
     !
     !The MPI version can allocate directly from the total dimension,
@@ -78,6 +78,14 @@ contains
     mpi_Istart = 1 + mpi_rank*mpi_Q+mpi_R
     mpi_Iend   = (mpi_rank+1)*mpi_Q+mpi_R
     mpi_Ishift = mpi_Rank*mpi_Q+mpi_R
+
+    if(MpiMaster)write(*,*)&
+         "         mpiRank,   mpi_Q,   mpi_R,      mpi_Qdw,      mpiR_dw,  mpi_Istart,  mpi_Iend,  mpi_Iend-mpi_Istart"
+    do irank=0,mpi_size-1
+       call Barrier_MPI(MpiComm)
+       if(mpi_rank==irank)write(*,*)Mpi_Rank,Mpi_Q,Mpi_R,mpiQdw,MpiRdw,Mpi_Istart,Mpi_Iend,Mpi_Iend-Mpi_Istart+1
+    enddo
+    call Barrier_MPI(MpiComm)
     !
 #else
     mpi_Istart = 1

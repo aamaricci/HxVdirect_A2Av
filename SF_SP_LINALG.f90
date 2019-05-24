@@ -32,8 +32,8 @@ module SF_SP_LINALG_
   integer,allocatable               :: seed_random(:)
   integer                           :: nrandom
   logical                           :: verb=.false.
-  real(8)                           :: threshold_=1.d-15
-  integer                           :: ncheck_=10
+  real(8)                           :: threshold_=1.d-12
+  integer                           :: ncheck_=1
 
 
 

@@ -60,7 +60,7 @@ program test_MPI_LANCZOS_D
   Nprint=Neigen
   !
   call set_MpiComm(comm)
-  call Setup_HxV(Nup,Ndw)  
+  call Setup_HxV(Nup,Ndw)
   allocate(Eval(1),Evec(DimUp*mpiQdw,1))
 
   if(mpi_master)print*,"LANCZOS DIAG D - MPI:"

@@ -50,7 +50,7 @@ subroutine mpi_lanczos_eigh_d(MpiComm,MatVec,Nitermax,Egs,Vect,iverbose,threshol
      norm_tmp=dot_product(vect,vect)
      call AllReduce_MPI(MpiComm,norm_tmp,norm)
      vect=vect/sqrt(norm)
-     if(verb.AND.mpi_master)write(*,*)"MPI_LANCZOS_EIGH: random initial vector generated:",size(vect),size(vin),size(vout)
+     if(verb.AND.mpi_master)write(*,*)"MPI_LANCZOS_EIGH: random initial vector generated:"
   endif
   !
   !============= LANCZOS LOOP =====================
@@ -84,6 +84,7 @@ subroutine mpi_lanczos_eigh_d(MpiComm,MatVec,Nitermax,Egs,Vect,iverbose,threshol
            if(abs(diff).le.threshold_)exit lanc_loop
         endif
      endif
+
   enddo lanc_loop
   if(nlanc==nitermax)print*,"LANCZOS_SIMPLE: reach Nitermax"
   !
