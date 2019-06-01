@@ -42,10 +42,11 @@ contains
     ! eps = 0d0
     ! eps = linspace(-2d0-mersenne(),2d0+mersenne(),Nbath)
     !
-    call mt_random(vps)
-    vps = vps/sqrt(5d0)
+    ! call mt_random(vps)
+    ! vps = vps/sqrt(5d0)
+    vps = 1d0/sqrt(2d0)
     !
-    Mh  = 0.5
+    Mh  = 0d0
     !
     !Set some Hamiltonian parameters:
     select case(Norb)
@@ -61,16 +62,16 @@ contains
        E0(2) =  0d0
        E0(3) = -Mh
     case (4)
-       E0(1) =  2d0*Mh
+       E0(1) =  2*Mh
        E0(2) =  Mh
        E0(3) = -Mh
-       E0(4) = -2d0*Mh
+       E0(4) = -2*Mh
     case (5)
-       E0(1) =  2d0*Mh
+       E0(1) =  2*Mh
        E0(2) =  Mh
        E0(3) =  0d0
        E0(4) = -Mh
-       E0(5) = -2d0*Mh
+       E0(5) = -2*Mh
     end select
     !
     Uloc = 1d0
@@ -243,15 +244,16 @@ contains
                    htmp = vps(kp)*sg1*sg2
                    j = jup + (idw-1)*DimUp
                    Hv(i) = Hv(i) + htmp*V(j)
+                   Hv(j) = Hv(j) + htmp*V(i)
                 endif
-                if( (nup(iorb)==0) .AND. (nup(alfa)==1) )then
-                   call c(alfa,mup,k1,sg1)
-                   call cdg(iorb,k1,k2,sg2)
-                   jup=binary_search(Hs(1)%map,k2)
-                   htmp = vps(kp)*sg1*sg2
-                   j = jup + (idw-1)*DimUp
-                   Hv(i) = Hv(i) + htmp*V(j)
-                endif
+                ! if( (nup(iorb)==0) .AND. (nup(alfa)==1) )then
+                !    call c(alfa,mup,k1,sg1)
+                !    call cdg(iorb,k1,k2,sg2)
+                !    jup=binary_search(Hs(1)%map,k2)
+                !    htmp = vps(kp)*sg1*sg2
+                !    j = jup + (idw-1)*DimUp
+                !    Hv(i) = Hv(i) + htmp*V(j)
+                ! endif
              enddo
           enddo
           !
@@ -284,17 +286,18 @@ contains
                    htmp=vps(kp)*sg1*sg2
                    j = jdw + (iup-1)*DimDw
                    Hvt(i) = Hvt(i) + htmp*vt(j)
+                   Hvt(j) = Hvt(j) + htmp*vt(i)
                 endif
                 !
                 !
-                if( (ndw(iorb)==0) .AND. (ndw(alfa)==1) )then
-                   call c(alfa,mdw,k1,sg1)
-                   call cdg(iorb,k1,k2,sg2)
-                   jdw=binary_search(Hs(2)%map,k2)
-                   htmp=vps(kp)*sg1*sg2
-                   j = jdw + (iup-1)*DimDw
-                   Hvt(i) = Hvt(i) + htmp*vt(j)
-                endif
+                ! if( (ndw(iorb)==0) .AND. (ndw(alfa)==1) )then
+                !    call c(alfa,mdw,k1,sg1)
+                !    call cdg(iorb,k1,k2,sg2)
+                !    jdw=binary_search(Hs(2)%map,k2)
+                !    htmp=vps(kp)*sg1*sg2
+                !    j = jdw + (iup-1)*DimDw
+                !    Hvt(i) = Hvt(i) + htmp*vt(j)
+                ! endif
              enddo
           enddo
           !

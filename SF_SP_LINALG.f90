@@ -164,15 +164,12 @@ contains
     !
     !  MAIN LOOP (Reverse communication loop)
     do
-       count=count+1
        call pdsaupd(MpiComm,ido,bmat,ldv,which_,nev,tol_,resid,&
             ncv,v,ldv,iparam,ipntr,workd,workl,lworkl,info )
-       print*,count,ido
        if(ido/=-1.AND.ido/=1)exit
        !  Perform matrix vector multiplication
        !    y <--- OP*x ; workd(ipntr(1))=input, workd(ipntr(2))=output
        call MatVec(ldv,workd(ipntr(1)),workd(ipntr(2)))
-
     end do
     !
     if(info<0)then
