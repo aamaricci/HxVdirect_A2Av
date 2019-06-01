@@ -46,7 +46,7 @@ contains
     ! vps = vps/sqrt(5d0)
     vps = 1d0/sqrt(2d0)
     !
-    Mh  = 0d0
+    Mh  = 1d0
     !
     !Set some Hamiltonian parameters:
     select case(Norb)
@@ -75,8 +75,8 @@ contains
     end select
     !
     Uloc = 1d0
-    Jh   = Uloc/5d0
-    Ust  = Uloc - 2d0*Jh
+    Jh   = Uloc/5
+    Ust  = Uloc - 2*Jh
 
     !
     if(MpiMaster)then
