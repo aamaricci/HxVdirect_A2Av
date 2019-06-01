@@ -89,8 +89,6 @@ contains
     real(8),allocatable          :: MpiSeed(:)
     logical                      :: mpi_master
     !
-    integer :: count=0
-    !
     which_ = 'SA'   ; if(present(which))which_=which
     tol_   = 0d0    ; if(present(tol))tol_=tol
     verb   = .false.; if(present(iverbose))verb=iverbose
@@ -134,26 +132,18 @@ contains
     if(present(v0))then
        resid = v0
     else
-       ! allocate(MpiSeed(MpiSize))
-       ! call random_number(MpiSeed)
+       allocate(MpiSeed(MpiSize))
+       call random_number(MpiSeed)
        do irank=0,MpiSize-1
-          ! if(irank==MpiRank)seed = int(123456789*MpiSeed(irank+1))
-          if(irank==MpiRank)seed = int(123456780 + irank)
+          if(irank==MpiRank)seed = int(123456789*MpiSeed(irank+1))
        end do
-       ! deallocate(MpiSeed)
+
        call mersenne_init(seed)
        call mt_random(resid)
        norm_tmp=dot_product(resid,resid)
        call AllReduce_MPI(MpiComm,norm_tmp,norm)
        resid=resid/sqrt(norm)
-       !
-       ! resid = 1d0
-       ! norm_tmp=dble(size(resid))
-       ! call AllReduce_MPI(MpiComm,norm_tmp,norm)
-       ! resid=resid/sqrt(norm)
-       !resid = 1d0/sqrt(dble(Ns)) !assume the starting vector is [1,1,1,1,....]
-       !
-       if(verb.AND.mpi_master)write(*,*)"MPI_ARPACK_EIGH: random initial vector generated"
+       ! resid = 1d0/sqrt(dble(Ns)) !assume the starting vector is [1,1,1,1,....]
     endif
     !
     ishfts    = 1
@@ -164,15 +154,12 @@ contains
     !
     !  MAIN LOOP (Reverse communication loop)
     do
-       count=count+1
        call pdsaupd(MpiComm,ido,bmat,ldv,which_,nev,tol_,resid,&
             ncv,v,ldv,iparam,ipntr,workd,workl,lworkl,info )
-       print*,count,ido
        if(ido/=-1.AND.ido/=1)exit
        !  Perform matrix vector multiplication
        !    y <--- OP*x ; workd(ipntr(1))=input, workd(ipntr(2))=output
        call MatVec(ldv,workd(ipntr(1)),workd(ipntr(2)))
-
     end do
     !
     if(info<0)then
@@ -263,7 +250,7 @@ contains
   !---------------------------------------------------------------------
   !Purpose: use plain lanczos to get the groundstate energy
   !---------------------------------------------------------------------
-  subroutine mpi_lanczos_eigh_d(MpiComm,MatVec,Nitermax,Egs,Vect,iverbose,threshold,ncheck)
+  subroutine mpi_lanczos_eigh_d(MpiComm,MatVec,Nitermax,Egs,Vect,iverbose,threshold,ncheck,nrestart)
     integer                              :: MpiComm
     interface 
        subroutine MatVec(Nloc,vin,vout)
@@ -278,23 +265,21 @@ contains
     real(8),dimension(:)                 :: vect !Nloc
     real(8),optional                     :: threshold
     integer,optional                     :: ncheck
+    integer,optional                     :: nrestart
     logical,optional                     :: iverbose
     !
     real(8),dimension(size(vect))        :: vin,vout
-    real(8),dimension(:),allocatable     :: MpiSeed
+    real(8),dimension(:),allocatable     :: vtmp
     integer                              :: iter,nlanc
     real(8),dimension(Nitermax+1)        :: alanc,blanc
     real(8),dimension(Nitermax,Nitermax) :: Z
     real(8),dimension(Nitermax)          :: diag,subdiag
-    real(8)                              :: esave,esave_prev,diff
+    real(8)                              :: esave,esave_prev,diff,diff_prev,diff_diff
     real(8)                              :: a_,b_,norm,norm_tmp
-    integer                              :: i,ierr,irank,seed
+    integer                              :: i,ierr,irestart,flag,Nflag
     !
-    integer :: MpiRank,MpiSize
-    logical                              :: mpi_master
+    logical                              :: mpi_master,converged
     !
-    MpiRank = get_Rank_mpi(MpiComm)
-    MpiSize = get_Size_mpi(MpiComm)
     mpi_master=get_master_MPI(MpiComm)
     !
     Nloc = size(vect)
@@ -302,60 +287,129 @@ contains
     if(present(iverbose))verb=iverbose
     if(present(threshold))threshold_=threshold
     if(present(ncheck))ncheck_=ncheck
+    if(present(nrestart))nrestart_=nrestart
     !
     norm_tmp=dot_product(vect,vect)
     call AllReduce_MPI(MpiComm,norm_tmp,norm)
     !
     if(norm==0d0)then
-       ! allocate(MpiSeed(MpiSize))
-       ! call random_number(MpiSeed)
-       do irank=0,MpiSize-1
-          ! if(irank==MpiRank)seed = int(123456789*MpiSeed(irank+1))
-          if(irank==MpiRank)seed = int(123456789 + irank)
-       end do
-       ! deallocate(MpiSeed)
-       call mersenne_init(seed)
        call mt_random(vect)
        norm_tmp=dot_product(vect,vect)
        call AllReduce_MPI(MpiComm,norm_tmp,norm)
        vect=vect/sqrt(norm)
-       if(verb.AND.mpi_master)write(*,*)"MPI_LANCZOS_EIGH: random initial vector generated"
+       if(verb.AND.mpi_master)write(*,*)"MPI_LANCZOS_EIGH: random initial vector generated:"
+       call Barrier_MPI(MpiComm)
     endif
     !
     !============= LANCZOS LOOP =====================
     !
-    Vin   = Vect                   !save input vector for Eigenvector calculation:
-    Vout  = 0d0
+    Vout = Vect
     esave = 0d0
     diff  = 0d0
-    alanc = 0d0
-    blanc = 0d0
-    nlanc = 0
-    lanc_loop: do iter=1,Nitermax
-       call mpi_lanczos_iteration_d(MpiComm,MatVec,iter,vin,vout,a_,b_)
-       if(abs(b_)<threshold_)exit lanc_loop
-       nlanc=nlanc+1
-       alanc(iter) = a_ ; blanc(iter+1) = b_
+    if(present(nrestart))then
+       irestart=0 ; converged=.false.
+       restart: do while(.not.converged.AND.irestart<Nrestart_)
+          irestart=irestart+1
+          Vin  = Vout                   !save input vector for Eigenvector calculation:
+          Vout = 0d0
+          alanc= 0d0
+          blanc= 0d0
+          nlanc= 0
+          lanc_loop: do iter=1,Nitermax
+             call mpi_lanczos_iteration_d(MpiComm,MatVec,iter,vin,vout,a_,b_)
+             if(abs(b_)<threshold_)exit lanc_loop
+             nlanc=nlanc+1
+             alanc(iter) = a_ ; blanc(iter+1) = b_
+             diag    = 0d0
+             subdiag = 0.d0
+             Z       = eye(Nlanc)
+             diag(1:Nlanc)    = alanc(1:Nlanc)
+             subdiag(2:Nlanc) = blanc(2:Nlanc)
+             call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
+             !
+             esave_prev = esave
+             esave      = diag(1)
+             diff_prev  = diff
+             diff       = esave - esave_prev
+             diff_diff  = diff  - diff_prev
+             !
+             if( nlanc >= Ncheck_ )then
+                if(verb.AND.mpi_master)write(*,*)'Iter, E0, deltaE = ',iter,diag(1),diff
+                if(sign(1d0,diff_diff) < 0d0 ) then
+                   converged = .false.
+                   !Get the Eigenvector:
+                   allocate(vtmp(Nloc))
+                   Vin = Vect
+                   Vout= 0d0
+                   Vtmp= 0d0
+                   do i=1,nlanc
+                      call mpi_lanczos_iteration_d(MpiComm,MatVec,i,vin,vout,aa,bb)
+                      Vtmp = Vtmp + vin*Z(i,1)
+                   end do
+                   norm_tmp = dot_product(Vtmp,Vtmp)
+                   call Allreduce_MPI(MpiComm,norm_tmp,norm)
+                   Vout = Vtmp/sqrt(norm)
+                   deallocate(Vtmp)
+                   if(verb.AND.mpi_master)write(*,*)'Restarting'
+                   exit lanc_loop
+                endif
+                !
+                if(abs(diff) <= threshold_)then
+                   converged=.true.
+                   exit lanc_loop
+                endif
+             endif
+             !
+          enddo lanc_loop
+          if(nlanc==nitermax)print*,"LANCZOS_SIMPLE: reach Nitermax"
+          !
+       enddo restart
        !
-       diag(1:Nlanc)    = alanc(1:Nlanc)
-       subdiag(2:Nlanc) = blanc(2:Nlanc)
-       call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
+    else
        !
-       esave_prev = esave
-       esave      = diag(1)
-       diff       = esave - esave_prev
-       !
-       if( nlanc >= Ncheck_ )then
-          if(verb.AND.mpi_master)write(*,*)'Iter, E0, deltaE = ',iter,diag(1),diff
-          if(abs(diff) <= threshold_)exit lanc_loop
-       endif
-       !
-    enddo lanc_loop
-    if(nlanc==nitermax)print*,"LANCZOS_SIMPLE: reach Nitermax"
+       Vin  = Vout                   !save input vector for Eigenvector calculation:
+       Vout = 0d0
+       alanc= 0d0
+       blanc= 0d0
+       nlanc= 0
+       flag = 0
+       lanc_loop1: do iter=1,Nitermax
+          call mpi_lanczos_iteration_d(MpiComm,MatVec,iter,vin,vout,a_,b_)
+          if(abs(b_)<threshold_)exit lanc_loop1
+          nlanc=nlanc+1
+          alanc(iter) = a_ ; blanc(iter+1) = b_
+          diag    = 0d0
+          subdiag = 0.d0
+          Z       = eye(Nlanc)
+          diag(1:Nlanc)    = alanc(1:Nlanc)
+          subdiag(2:Nlanc) = blanc(2:Nlanc)
+          call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
+          !
+          esave_prev = esave
+          esave      = diag(1)
+          diff_prev  = diff
+          diff       = esave - esave_prev
+          diff_diff  = diff  - diff_prev
+          !
+          if( nlanc >= Ncheck_ )then
+             if(verb.AND.mpi_master)write(*,*)'Iter, E0, deltaE = ',iter,diag(1),diff
+             if(abs(diff) <= threshold_)then
+                converged=.true.
+                exit lanc_loop1
+             endif
+          endif
+          !
+       enddo lanc_loop1
+       if(nlanc==nitermax)print*,"LANCZOS_SIMPLE: reach Nitermax"
+    endif
     !
+
     !
     !============== END LANCZOS LOOP ======================
     !
+    diag    = 0d0
+    subdiag = 0.d0
+    Z       = eye(Nlanc)
     diag(1:Nlanc)    = alanc(1:Nlanc)
     subdiag(2:Nlanc) = blanc(2:Nlanc)
     call eigh(diag(1:Nlanc),subdiag(2:Nlanc),Ev=Z(:Nlanc,:Nlanc))
@@ -365,11 +419,11 @@ contains
     !
     !Get the Eigenvector:
     Vin = Vect
-    Vout= 0d0
-    Vect= 0d0
+    vout= 0d0
+    vect= 0d0
     do iter=1,nlanc
        call mpi_lanczos_iteration_d(MpiComm,MatVec,iter,vin,vout,alanc(iter),blanc(iter))
-       Vect = Vect + vin*Z(iter,1)
+       vect = vect + vin*Z(iter,1)
     end do
     norm_tmp = dot_product(vect,vect)
     call Allreduce_MPI(MpiComm,norm_tmp,norm)

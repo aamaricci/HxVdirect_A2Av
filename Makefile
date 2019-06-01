@@ -11,7 +11,7 @@ DIREXE = ~/.bin
 
 OBJS     = COMMON_VARS.o SETUP.o MATVEC_PRODUCT.o  SF_SP_LINALG.o 
 
-FFLAG = -O2 -funroll-all-loops
+FFLAG = -O3 -funroll-all-loops
 DFLAG = -O0 -p -g -fimplicit-none -Wsurprising  -Waliasing -fwhole-file -fcheck=all -pedantic -fbacktrace -ffree-line-length-none
 
 
@@ -20,15 +20,15 @@ ARGS=$(shell pkg-config --libs   dmft_tools scifor)
 
 
 all: $(OBJS)
-	${FC} ${FFLAG} -cpp -D_MPI ${OBJS} ${PEXE1}.f90 -o ${DIREXE}/${PEXE1} ${INCS} ${ARGS}
-	${FC} ${FFLAG} -cpp -D_MPI ${OBJS} ${PEXE2}.f90 -o ${DIREXE}/${PEXE2} ${INCS} ${ARGS}
+	${FC} ${FFLAG} ${OBJS} ${PEXE1}.f90 -o ${DIREXE}/${PEXE1} ${INCS} ${ARGS}
+	${FC} ${FFLAG} ${OBJS} ${PEXE2}.f90 -o ${DIREXE}/${PEXE2} ${INCS} ${ARGS}
 	@echo ""
 
 
 debug: FFLAG=${DFLAG} 
 debug: $(OBJS)
-	${FC} ${FFLAG} -cpp -D_MPI ${OBJS} ${PEXE1}.f90 -o ${DIREXE}/${PEXE1} ${INCS} ${ARGS}
-	${FC} ${FFLAG} -cpp -D_MPI ${OBJS} ${PEXE2}.f90 -o ${DIREXE}/${PEXE2} ${INCS} ${ARGS}
+	${FC} ${FFLAG} ${OBJS} ${PEXE1}.f90 -o ${DIREXE}/${PEXE1} ${INCS} ${ARGS}
+	${FC} ${FFLAG} ${OBJS} ${PEXE2}.f90 -o ${DIREXE}/${PEXE2} ${INCS} ${ARGS}
 	@echo ""
 
 
@@ -42,6 +42,6 @@ clean:
 	@echo ""
 
 .f90.o:	
-	${FC} ${FFLAG} -cpp -D_MPI -c $< $(INCS)
+	${FC} ${FFLAG} -c $< $(INCS)
 
 

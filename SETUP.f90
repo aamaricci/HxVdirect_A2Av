@@ -1,9 +1,7 @@
 MODULE SETUP
   USE COMMON_VARS
-#ifdef _MPI
   USE SF_MPI
   USE MPI
-#endif
   implicit none
   private
 
