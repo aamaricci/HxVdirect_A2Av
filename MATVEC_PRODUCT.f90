@@ -75,8 +75,8 @@ contains
     end select
     !
     Uloc = 1d0
-    Jh   = Uloc/5
-    Ust  = Uloc - 2*Jh
+    Jh   = Uloc/5d0
+    Ust  = Uloc - 2d0*Jh
 
     !
     if(MpiMaster)then
@@ -339,12 +339,12 @@ contains
                      (ndw(jorb)==0).AND.&
                      (nup(iorb)==0))
                 if(Jcondition)then
-                   call c(jorb,mup,k1,sg3)  !UP
-                   call cdg(iorb,k1,k2,sg4) !UP
+                   call c(jorb,mup,k1,sg1)  !UP
+                   call cdg(iorb,k1,k2,sg2) !UP
                    jup=binary_search(Hs(1)%map,k2)
-                   call c(iorb,mdw,k1,sg1)  !DW
-                   call cdg(jorb,k1,k2,sg2) !DW
-                   jdw=binary_search(Hs(2)%map,k2)
+                   call c(iorb,mdw,k3,sg3)  !DW
+                   call cdg(jorb,k3,k4,sg4) !DW
+                   jdw=binary_search(Hs(2)%map,k4)
                    htmp = Jh*sg1*sg2*sg3*sg4
                    j = jup + (jdw-1)*dimup
                    !
@@ -367,11 +367,11 @@ contains
                      (nup(iorb)==0))
                 if(Jcondition)then
                    call c(jorb,mup,k1,sg1)       !c_jorb_up
-                   call cdg(iorb,k1,k2,sg4)      !c^+_iorb_up
+                   call cdg(iorb,k1,k2,sg2)      !c^+_iorb_up
                    jup = binary_search(Hs(1)%map,k2)
-                   call c(jorb,mdw,k1,sg1)       !c_jorb_dw
-                   call cdg(iorb,k1,k2,sg2)      !c^+_iorb_dw
-                   jdw = binary_search(Hs(2)%map,k2)
+                   call c(jorb,mdw,k3,sg3)       !c_jorb_dw
+                   call cdg(iorb,k3,k4,sg4)      !c^+_iorb_dw
+                   jdw = binary_search(Hs(2)%map,k4)
                    htmp = Jh*sg1*sg2*sg3*sg4
                    j = jup + (jdw-1)*dimup
                    !
