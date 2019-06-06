@@ -117,11 +117,12 @@ contains
     mpi_Ishift = mpi_Rank*mpi_Q+mpi_R
 
     call Barrier_MPI(MpiComm)
-    if(MpiMaster)write(*,*)&
-         "         mpiRank,   mpi_Q,   mpi_R,      mpi_Qdw,      mpiR_dw,  mpi_Istart,  mpi_Iend,  mpi_Iend-mpi_Istart"
+    if(MpiMaster)write(*,"(9A20)")"mpiRank","mpi_Q","mpi_R",&
+         "mpi_Qdw","mpiR_dw","mpi_Ishift","mpi_Istart","mpi_Iend","mpi_Iend-mpi_Istart"
+    call Barrier_MPI(MpiComm)
     do irank=0,mpi_size-1
        call Barrier_MPI(MpiComm)
-       if(mpi_rank==irank)write(*,*)Mpi_Rank,Mpi_Q,Mpi_R,mpiQdw,MpiRdw,Mpi_Istart,Mpi_Iend,Mpi_Iend-Mpi_Istart+1
+       if(mpi_rank==irank)write(*,"(9I20)")Mpi_Rank,Mpi_Q,Mpi_R,mpiQdw,MpiRdw,Mpi_Ishift,Mpi_Istart,Mpi_Iend,Mpi_Iend-Mpi_Istart+1
     enddo
     call Barrier_MPI(MpiComm)
     !
@@ -158,6 +159,7 @@ contains
     !
     !LOCAL PART
     do i=1,Nloc
+       print*,i+mpi_Ishift
        iup = iup_index(i+mpi_Ishift,DimUp)
        idw = idw_index(i+mpi_Ishift,DimUp)
        !
