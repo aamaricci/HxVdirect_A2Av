@@ -171,22 +171,12 @@ contains
     !
     !Evaluate the local contribution: Hv_loc = Hloc*v
     Hv=0d0
-    !LOCAL PART
-
-    rewind(500+MpiRank)
-    do i=1,Nloc
-       iup = iup_index(i+mpi_Ishift,DimUp)
-       idw = idw_index(i+mpi_Ishift,DimUp)
-       write(500+MpiRank,*)i,iup,idw
-    enddo
-    rewind(600+MpiRank)
-    !
+    !LOCAL PART: do a suitable double loop here to avoid having too large integers
+    !            as in sectors which are as large as 2**31
     do impi_dw = 1,MpiQdw
        idw = impi_dw + mpiIdw 
        do iup = 1,DimUp
           i = iup + (impi_dw-1)*DimUp
-          write(600+MpiRank,*)i,iup,idw,mpiQdw
-          !
           !
           nup  = bdecomp(Hs(1)%map(iup),Ns)
           ndw  = bdecomp(Hs(2)%map(idw),Ns)
@@ -249,7 +239,6 @@ contains
     if(MpiRank<mod(DimUp,MpiSize))MpiQup_=MpiQup_+1
     !
     !
-    !
     !Non-local terms.
     !UP PART: CONTIGUOUS IN MEMORY.
     do idw=1,MpiQdw_               !for any DW state
@@ -275,14 +264,6 @@ contains
                    Hv(i) = Hv(i) + htmp*V(j)
                    Hv(j) = Hv(j) + htmp*V(i)
                 endif
-                ! if( (nup(iorb)==0) .AND. (nup(alfa)==1) )then
-                !    call c(alfa,mup,k1,sg1)
-                !    call cdg(iorb,k1,k2,sg2)
-                !    jup=binary_search(Hs(1)%map,k2)
-                !    htmp = vps(kp)*sg1*sg2
-                !    j = jup + (idw-1)*DimUp
-                !    Hv(i) = Hv(i) + htmp*V(j)
-                ! endif
              enddo
           enddo
           !
@@ -317,16 +298,6 @@ contains
                    Hvt(i) = Hvt(i) + htmp*vt(j)
                    Hvt(j) = Hvt(j) + htmp*vt(i)
                 endif
-                !
-                !
-                ! if( (ndw(iorb)==0) .AND. (ndw(alfa)==1) )then
-                !    call c(alfa,mdw,k1,sg1)
-                !    call cdg(iorb,k1,k2,sg2)
-                !    jdw=binary_search(Hs(2)%map,k2)
-                !    htmp=vps(kp)*sg1*sg2
-                !    j = jdw + (iup-1)*DimDw
-                !    Hvt(i) = Hvt(i) + htmp*vt(j)
-                ! endif
              enddo
           enddo
           !
@@ -338,6 +309,8 @@ contains
     Hv = Hv + vt
     deallocate(vt)
     !
+    !
+    !
     !NON-LOCAL HAMILTONIAN PART: H_non_loc*vin = vout
     if(Jhflag)then
        N = 0
@@ -346,70 +319,75 @@ contains
        allocate(vt(N)) ; vt = 0d0
        call allgather_vector_MPI(MpiComm,v,vt)
        !
-       do i=1,Nloc
-          iup = iup_index(i+mpi_Ishift,DimUp)
-          idw = idw_index(i+mpi_Ishift,DimUp)
-          !
-          mup = Hs(1)%map(iup)
-          mdw = Hs(2)%map(idw)
-          !
-          nup  = bdecomp(mup,Ns)
-          ndw  = bdecomp(mdw,Ns)
-          !
-          ! SPIN-EXCHANGE (S-E) 
-          !    S-E: J c^+_iorb_up c^+_jorb_dw c_iorb_dw c_jorb_up  (i.ne.j) 
-          !    S-E: J c^+_{iorb} c^+_{jorb+Ns} c_{iorb+Ns} c_{jorb}
-          do iorb=1,Norb
-             do jorb=1,Norb
-                Jcondition=(&
-                     (iorb/=jorb).AND.&
-                     (nup(jorb)==1).AND.&
-                     (ndw(iorb)==1).AND.&
-                     (ndw(jorb)==0).AND.&
-                     (nup(iorb)==0))
-                if(Jcondition)then
-                   call c(jorb,mup,k1,sg1)  !UP
-                   call cdg(iorb,k1,k2,sg2) !UP
-                   jup=binary_search(Hs(1)%map,k2)
-                   call c(iorb,mdw,k3,sg3)  !DW
-                   call cdg(jorb,k3,k4,sg4) !DW
-                   jdw=binary_search(Hs(2)%map,k4)
-                   htmp = Jh*sg1*sg2*sg3*sg4
-                   j = jup + (jdw-1)*dimup
-                   !
-                   Hv(i) = Hv(i) + htmp*vt(j)
-                   !
-                endif
+       ! do i=1,Nloc
+       !    iup = iup_index(i+mpi_Ishift,DimUp)
+       !    idw = idw_index(i+mpi_Ishift,DimUp)
+       do impi_dw = 1,MpiQdw
+          idw = impi_dw + mpiIdw 
+          do iup = 1,DimUp
+             i = iup + (impi_dw-1)*DimUp
+             !
+             mup = Hs(1)%map(iup)
+             mdw = Hs(2)%map(idw)
+             !
+             nup  = bdecomp(mup,Ns)
+             ndw  = bdecomp(mdw,Ns)
+             !
+             ! SPIN-EXCHANGE (S-E) 
+             !    S-E: J c^+_iorb_up c^+_jorb_dw c_iorb_dw c_jorb_up  (i.ne.j) 
+             !    S-E: J c^+_{iorb} c^+_{jorb+Ns} c_{iorb+Ns} c_{jorb}
+             do iorb=1,Norb
+                do jorb=1,Norb
+                   Jcondition=(&
+                        (iorb/=jorb).AND.&
+                        (nup(jorb)==1).AND.&
+                        (ndw(iorb)==1).AND.&
+                        (ndw(jorb)==0).AND.&
+                        (nup(iorb)==0))
+                   if(Jcondition)then
+                      call c(jorb,mup,k1,sg1)  !UP
+                      call cdg(iorb,k1,k2,sg2) !UP
+                      jup=binary_search(Hs(1)%map,k2)
+                      call c(iorb,mdw,k3,sg3)  !DW
+                      call cdg(jorb,k3,k4,sg4) !DW
+                      jdw=binary_search(Hs(2)%map,k4)
+                      htmp = Jh*sg1*sg2*sg3*sg4
+                      j = jup + (jdw-1)*dimup
+                      !
+                      Hv(i) = Hv(i) + htmp*vt(j)
+                      !
+                   endif
+                enddo
              enddo
-          enddo
-          !
-          ! PAIR-HOPPING (P-H) TERMS
-          !    P-H: J c^+_iorb_up c^+_iorb_dw   c_jorb_dw   c_jorb_up  (i.ne.j) 
-          !    P-H: J c^+_{iorb}  c^+_{iorb+Ns} c_{jorb+Ns} c_{jorb}
-          do iorb=1,Norb
-             do jorb=1,Norb
-                Jcondition=(&
-                     (iorb/=jorb).AND.&
-                     (nup(jorb)==1).AND.&
-                     (ndw(jorb)==1).AND.&
-                     (ndw(iorb)==0).AND.&
-                     (nup(iorb)==0))
-                if(Jcondition)then
-                   call c(jorb,mup,k1,sg1)       !c_jorb_up
-                   call cdg(iorb,k1,k2,sg2)      !c^+_iorb_up
-                   jup = binary_search(Hs(1)%map,k2)
-                   call c(jorb,mdw,k3,sg3)       !c_jorb_dw
-                   call cdg(iorb,k3,k4,sg4)      !c^+_iorb_dw
-                   jdw = binary_search(Hs(2)%map,k4)
-                   htmp = Jh*sg1*sg2*sg3*sg4
-                   j = jup + (jdw-1)*dimup
-                   !
-                   Hv(i) = Hv(i) + htmp*vt(j)
-                   !
-                endif
+             !
+             ! PAIR-HOPPING (P-H) TERMS
+             !    P-H: J c^+_iorb_up c^+_iorb_dw   c_jorb_dw   c_jorb_up  (i.ne.j) 
+             !    P-H: J c^+_{iorb}  c^+_{iorb+Ns} c_{jorb+Ns} c_{jorb}
+             do iorb=1,Norb
+                do jorb=1,Norb
+                   Jcondition=(&
+                        (iorb/=jorb).AND.&
+                        (nup(jorb)==1).AND.&
+                        (ndw(jorb)==1).AND.&
+                        (ndw(iorb)==0).AND.&
+                        (nup(iorb)==0))
+                   if(Jcondition)then
+                      call c(jorb,mup,k1,sg1)       !c_jorb_up
+                      call cdg(iorb,k1,k2,sg2)      !c^+_iorb_up
+                      jup = binary_search(Hs(1)%map,k2)
+                      call c(jorb,mdw,k3,sg3)       !c_jorb_dw
+                      call cdg(iorb,k3,k4,sg4)      !c^+_iorb_dw
+                      jdw = binary_search(Hs(2)%map,k4)
+                      htmp = Jh*sg1*sg2*sg3*sg4
+                      j = jup + (jdw-1)*dimup
+                      !
+                      Hv(i) = Hv(i) + htmp*vt(j)
+                      !
+                   endif
+                enddo
              enddo
+             !     
           enddo
-          !     
        enddo
        !
        deallocate(Vt)
