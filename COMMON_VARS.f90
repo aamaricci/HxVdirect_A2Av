@@ -15,7 +15,7 @@ MODULE COMMON_VARS
   integer :: MpiRank=0
   integer :: MpiSize=1
   logical :: MpiMaster=.true.
-
+  
   integer :: mpiQup,mpiRup
   integer :: mpiQdw,mpiRdw
 

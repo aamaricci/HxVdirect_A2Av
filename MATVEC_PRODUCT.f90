@@ -23,7 +23,7 @@ MODULE MATVEC_PRODUCT
   integer                       :: mpi_R
   integer                       :: mpi_Istart
   integer                       :: mpi_Iend
-  integer                       :: mpi_Ishift
+  integer                       :: mpi_Ishift,mpiIdw
 
 
 contains
@@ -37,7 +37,10 @@ contains
   subroutine Setup_HxV(Nups,Ndws)
     integer :: Nups,Ndws,iorb,irank
     real(8) :: Deps
-    integer :: seed
+    integer :: seed,i
+    integer :: iup,idw
+    integer :: impi_up,impi_dw
+    !
     !
     ! eps = 0d0
     ! eps = linspace(-2d0-mersenne(),2d0+mersenne(),Nbath)
@@ -109,6 +112,7 @@ contains
        mpiRdw = 0
        MpiQdw = MpiQdw+1
     endif
+    mpiIdw = mpi_Rank*MpiQdw + mpiRdw
     !Wait here to parse/read Dim
     mpi_Q = DimUp*mpiQdw
     mpi_R = DimUp*mpiRdw
@@ -126,6 +130,18 @@ contains
     enddo
     call Barrier_MPI(MpiComm)
     !
+    ! do i=1,MpiQdw*DimUp
+    !    write(700+Mpi_Rank,*)i
+    ! enddo
+    !
+    ! do idw=1,MpiQdw
+    !    impi_dw = idw + mpiIdw
+    !    do iup=1,DimUp
+    !       write(800+Mpi_Rank,*)iup+(impi_dw-1)*DimUp
+    !       write(300+Mpi_Rank,*)iup + (idw-1)*DimUp
+    !    enddo
+    ! enddo
+    !
   end subroutine Setup_HxV
 
 
@@ -139,93 +155,104 @@ contains
     integer                          :: N
     real(8),dimension(:),allocatable :: vt,Hvt
     !local MPI
-    integer                          :: irank
-    integer                          :: MpiQup,MpiQdw
+    integer                          :: MpiQup_,MpiQdw_
+    !
     integer,dimension(Ns)            :: nup,ndw
     integer                          :: i,iup,idw
     integer                          :: j,jup,jdw
     integer                          :: m,mup,mdw
-    integer                          :: ms
     integer                          :: impi,impi_up,impi_dw
-    integer                          :: iorb,jorb,ispin,jspin,ibath
+    integer                          :: iorb,jorb,ibath
     integer                          :: kp,k1,k2,k3,k4
-    integer                          :: alfa,beta
+    integer                          :: alfa
     real(8)                          :: sg1,sg2,sg3,sg4
     real(8)                          :: htmp
     logical                          :: Jcondition
     !
     !Evaluate the local contribution: Hv_loc = Hloc*v
     Hv=0d0
-    !
     !LOCAL PART
+
+    rewind(500+MpiRank)
     do i=1,Nloc
-       print*,i+mpi_Ishift
        iup = iup_index(i+mpi_Ishift,DimUp)
        idw = idw_index(i+mpi_Ishift,DimUp)
-       !
-       nup  = bdecomp(Hs(1)%map(iup),Ns)
-       ndw  = bdecomp(Hs(2)%map(idw),Ns)
-       !
-       !Diagonal Elements, i.e. local part
-       htmp = 0d0
-       do iorb=1,Norb
-          htmp = htmp + e0(iorb)*(nup(iorb)+ndw(iorb))
-       enddo
-       !
-       !> H_Int: Kanamori interaction part. non-local S-E and P-H terms commented below.
-       !
-       ! density-density interaction: \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
-       !                              + contributions of hartree terms
-       do iorb=1,Norb
-          htmp = htmp + Uloc*Nup(iorb)*Ndw(iorb)
-          htmp = htmp - 0.5d0*Uloc*(Nup(iorb)+Ndw(iorb)) + Norb*0.25d0*uloc
-       enddo
-       !
-       !
-       if(Norb>1)then
-          do iorb=1,Norb
-             do jorb=iorb+1,Norb
-                !density-density interaction: different orbitals, opposite spins:
-                ! =   U'   *     sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
-                ! =  (Uloc-2*Jh)*sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
-                htmp = htmp + Ust*(Nup(iorb)*Ndw(jorb) + Nup(jorb)*Ndw(iorb))
-                !
-                !density-density interaction: different orbitals, parallel spins
-                ! = \sum_{i<j}    U''     *[ n_{i,up}*n_{j,up} + n_{i,dw}*n_{j,dw} ]
-                ! = \sum_{i<j} (Uloc-3*Jh)*[ n_{i,up}*n_{j,up} + n_{i,dw}*n_{j,dw} ]
-                htmp = htmp + (Ust-Jh)*(Nup(iorb)*Nup(jorb) + Ndw(iorb)*Ndw(jorb))
-                !
-                !using the Hartree-shifted chemical potential: mu=0 for half-filling
-                htmp=htmp-0.5d0*Ust*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*Ust
-                htmp=htmp-0.5d0*(Ust-Jh)*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*(Ust-Jh)
-             enddo
-          enddo
-       endif
-       !
-       !> H_Bath: local bath energy contribution. Assume zero
-       ! do iorb=1,Norb
-       !    do kp=1,Nbath
-       !       alfa = get_bath_index(iorb,kp)
-       !       htmp =htmp + eps(kp)*(Nup(alfa)+Ndw(alfa))
-       !    enddo
-       ! enddo
-       !
-       Hv(i) = Hv(i) + htmp*v(i)
-       !
+       write(500+MpiRank,*)i,iup,idw
     enddo
-
+    rewind(600+MpiRank)
     !
-    mpiQdw=DimDw/MpiSize
-    if(MpiRank<mod(DimDw,MpiSize))MpiQdw=MpiQdw+1
+    do impi_dw = 1,MpiQdw
+       idw = impi_dw + mpiIdw 
+       do iup = 1,DimUp
+          i = iup + (impi_dw-1)*DimUp
+          write(600+MpiRank,*)i,iup,idw,mpiQdw
+          !
+          !
+          nup  = bdecomp(Hs(1)%map(iup),Ns)
+          ndw  = bdecomp(Hs(2)%map(idw),Ns)
+          !
+          !Diagonal Elements, i.e. local part
+          htmp = 0d0
+          do iorb=1,Norb
+             htmp = htmp + e0(iorb)*(nup(iorb)+ndw(iorb))
+          enddo
+          !
+          !> H_Int: Kanamori interaction part. non-local S-E and P-H terms commented below.
+          !
+          ! density-density interaction: \sum_\a U_\a*(n_{\a,up}*n_{\a,dw})
+          !                              + contributions of hartree terms
+          do iorb=1,Norb
+             htmp = htmp + Uloc*Nup(iorb)*Ndw(iorb)
+             htmp = htmp - 0.5d0*Uloc*(Nup(iorb)+Ndw(iorb)) + Norb*0.25d0*uloc
+          enddo
+          !
+          !
+          if(Norb>1)then
+             do iorb=1,Norb
+                do jorb=iorb+1,Norb
+                   !density-density interaction: different orbitals, opposite spins:
+                   ! =   U'   *     sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
+                   ! =  (Uloc-2*Jh)*sum_{i/=j} [ n_{i,up}*n_{j,dw} + n_{j,up}*n_{i,dw} ]
+                   htmp = htmp + Ust*(Nup(iorb)*Ndw(jorb) + Nup(jorb)*Ndw(iorb))
+                   !
+                   !density-density interaction: different orbitals, parallel spins
+                   ! = \sum_{i<j}    U''     *[ n_{i,up}*n_{j,up} + n_{i,dw}*n_{j,dw} ]
+                   ! = \sum_{i<j} (Uloc-3*Jh)*[ n_{i,up}*n_{j,up} + n_{i,dw}*n_{j,dw} ]
+                   htmp = htmp + (Ust-Jh)*(Nup(iorb)*Nup(jorb) + Ndw(iorb)*Ndw(jorb))
+                   !
+                   !using the Hartree-shifted chemical potential: mu=0 for half-filling
+                   htmp=htmp-0.5d0*Ust*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*Ust
+                   htmp=htmp-0.5d0*(Ust-Jh)*(Nup(iorb)+Ndw(iorb)+Nup(jorb)+Ndw(jorb))+0.25d0*(Ust-Jh)
+                enddo
+             enddo
+          endif
+          !
+          !> H_Bath: local bath energy contribution. Assume zero
+          ! do iorb=1,Norb
+          !    do kp=1,Nbath
+          !       alfa = get_bath_index(iorb,kp)
+          !       htmp =htmp + eps(kp)*(Nup(alfa)+Ndw(alfa))
+          !    enddo
+          ! enddo
+          Hv(i) = Hv(i) + htmp*v(i)
+          !
+       enddo
+    enddo
     !
-    mpiQup=DimUp/MpiSize
-    if(MpiRank<mod(DimUp,MpiSize))MpiQup=MpiQup+1
+    !
+    !
+    !< Local splitting of the Dw and Up sectors
+    mpiQdw_=DimDw/MpiSize
+    if(MpiRank<mod(DimDw,MpiSize))MpiQdw_=MpiQdw_+1
+    !
+    mpiQup_=DimUp/MpiSize
+    if(MpiRank<mod(DimUp,MpiSize))MpiQup_=MpiQup_+1
     !
     !
     !
     !Non-local terms.
     !UP PART: CONTIGUOUS IN MEMORY.
-    do idw=1,MpiQdw               !for any DW state
+    do idw=1,MpiQdw_               !for any DW state
        !
        do iup=1,DimUp             !loop over UP states
           mup  = Hs(1)%map(iup)   !map up_sector_state 2 up_fock_state 
@@ -267,10 +294,10 @@ contains
     !
     !DW PART: NON-CONTIGUOUS IN MEMORY -> MPI TRANSPOSITION
     !Transpose the input vector as a whole:
-    allocate(vt(mpiQup*DimDw)) ;vt=0d0
-    allocate(Hvt(mpiQup*DimDw));Hvt=0d0    
-    call vector_transpose_MPI(DimUp,MpiQdw,v,DimDw,MpiQup,vt)
-    do iup=1,MpiQup
+    allocate(vt(mpiQup_*DimDw)) ;vt=0d0
+    allocate(Hvt(mpiQup_*DimDw));Hvt=0d0    
+    call vector_transpose_MPI(DimUp,MpiQdw_,v,DimDw,MpiQup_,vt)
+    do iup=1,MpiQup_
        do idw=1,DimDw
           mdw  = Hs(2)%map(idw)
           ndw  = bdecomp(mdw,Ns)
@@ -306,8 +333,8 @@ contains
           !
        enddo
     enddo
-    deallocate(vt) ; allocate(vt(DimUp*mpiQdw)) ; vt=0d0
-    call vector_transpose_MPI(DimDw,mpiQup,Hvt,DimUp,mpiQdw,vt)
+    deallocate(vt) ; allocate(vt(DimUp*mpiQdw_)) ; vt=0d0
+    call vector_transpose_MPI(DimDw,mpiQup_,Hvt,DimUp,mpiQdw_,vt)
     Hv = Hv + vt
     deallocate(vt)
     !
