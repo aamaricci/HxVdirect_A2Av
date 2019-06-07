@@ -50,7 +50,7 @@ program test_MPI_LANCZOS_D
   call parse_input_variable(nbath,"NBATH",finput,default=9)
   call parse_input_variable(jhflag,"JHFLAG",finput,default=.false.)
   call parse_input_variable(Neigen,"NEIGEN",finput,default=1)
-  call parse_input_variable(NCV,"NCV",finput,default=10)
+  call parse_input_variable(Nvps,"NVPS",finput,default=1)
   if(mpi_master)then
      call print_input()
      call save_input(trim(finput))

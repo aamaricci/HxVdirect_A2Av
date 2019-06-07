@@ -15,7 +15,7 @@ MODULE COMMON_VARS
   integer :: MpiRank=0
   integer :: MpiSize=1
   logical :: MpiMaster=.true.
-  
+
   integer :: mpiQup,mpiRup
   integer :: mpiQdw,mpiRdw
 
@@ -29,14 +29,15 @@ MODULE COMMON_VARS
   real(8) :: t_start,t_end
 
   !Hamiltonian hard coded paramters:
-  real(8),allocatable :: Vps(:)
+  real(8),allocatable :: Vps(:,:) ![Norb,Nbath]
   real(8),allocatable :: Eps(:)
   real(8),allocatable :: E0(:)
   real(8)             :: Mh
   real(8)             :: Uloc,Ust,Jh
+  integer             :: Nvps
   logical             :: jhflag=.false.
   integer,allocatable :: get_bath_index(:,:)
-  
+
 contains
 
 
@@ -53,7 +54,7 @@ contains
     if(allocated(get_bath_index))deallocate(get_bath_index)
     !
     allocate(Eps(Nbath))
-    allocate(Vps(Nbath))
+    allocate(Vps(Norb,Nbath))
     allocate(E0(Norb))
     allocate(get_bath_index(Norb,Nbath))
     do ibath=1,Nbath

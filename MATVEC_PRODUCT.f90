@@ -47,7 +47,9 @@ contains
     !
     ! call mt_random(vps)
     ! vps = vps/sqrt(5d0)
-    vps = 1d0/sqrt(2d0)
+    if(Nvps>Norb)Nvps=Norb
+    vps           = 0d0
+    vps(1:Nvps,:) = 1d0/sqrt(2d0)
     !
     Mh  = 1d0
     !
@@ -252,14 +254,15 @@ contains
           do iorb=1,Norb
              do kp=1,Nbath        !loop over bath levels
                 !
-                !< get index of the bath sites in the fock ket 
+                if(vps(iorb,kp)==0d0)cycle
+                !< get index of the bath sites in the fock ket
                 alfa = get_bath_index(iorb,kp)
                 !
                 if( (nup(iorb)==1) .AND. (nup(alfa)==0) )then              
                    call c(iorb,mup,k1,sg1)
                    call cdg(alfa,k1,k2,sg2)
                    jup = binary_search(Hs(1)%map,k2)
-                   htmp = vps(kp)*sg1*sg2
+                   htmp = vps(iorb,kp)*sg1*sg2
                    j = jup + (idw-1)*DimUp
                    Hv(i) = Hv(i) + htmp*V(j)
                    Hv(j) = Hv(j) + htmp*V(i)
@@ -287,13 +290,15 @@ contains
           do iorb=1,Norb
              do kp=1,Nbath
                 !
+                if(vps(iorb,kp)==0d0)cycle
+                !
                 alfa = get_bath_index(iorb,kp)
                 !
                 if( (ndw(iorb)==1) .AND. (ndw(alfa)==0) )then
                    call c(iorb,mdw,k1,sg1)
                    call cdg(alfa,k1,k2,sg2)
                    jdw=binary_search(Hs(2)%map,k2)
-                   htmp=vps(kp)*sg1*sg2
+                   htmp=vps(iorb,kp)*sg1*sg2
                    j = jdw + (iup-1)*DimDw
                    Hvt(i) = Hvt(i) + htmp*vt(j)
                    Hvt(j) = Hvt(j) + htmp*vt(i)
